@@ -25,8 +25,9 @@ async function run() {
   try {
     await client.connect();
   
+   const db = client.db('codeClash');
+   const problemCollection = db.collection('problem');
 
-    
 
 
 
