@@ -24,11 +24,30 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-  
-   const db = client.db('codeClash');
-   const problemCollection = db.collection('problem');
 
+    const db = client.db('codeClash');
+    const problemCollection = db.collection('problems');
 
+    // api for sorting problem data with difficulty and category
+    app.get('/api/problems', async (req, res) => {
+      try {
+        const { difficulty, category } = req.query;
+
+        const query = {};
+        if (difficulty) query.difficulty = difficulty;
+        if (category) query.category = category;
+
+        const problems = await problemCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.json(problems);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
+      }
+    });
 
 
     // Send a ping to confirm a successful connection
