@@ -27,6 +27,7 @@ async function run() {
 
     const db = client.db('codeClash');
     const problemCollection = db.collection('problems');
+    const contestCollection = db.collection('contests');
 
     // api for sorting problem data with difficulty and category
     app.get('/api/problems', async (req, res) => {
@@ -48,6 +49,33 @@ async function run() {
         res.status(500).json({ message: 'Server Error' });
       }
     });
+
+
+    // api for getting contests with problems
+    app.get('/api/contests', async (req, res) => {
+      try {
+        const contests = await contestCollection.find().sort({ startTime: 1 }).toArray();
+
+        const contestsWithProblems = await Promise.all(
+          contests.map(async (contest) => {
+            const problems = await problemCollection
+              .find({ _id: { $in: contest.problems } })
+              .toArray();
+
+            return {
+              ...contest,
+              problems,
+            };
+          })
+        );
+
+        res.status(200).json(contestsWithProblems);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
+      }
+    });
+
 
 
     // Send a ping to confirm a successful connection
