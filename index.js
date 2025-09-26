@@ -32,46 +32,46 @@ async function run() {
 
 
     // api for adding a new user
-app.post('/api/users', async (req, res) => {
-  try {
-    const { userName, userEmail, userImage, userRole } = req.body;
+    app.post('/api/users', async (req, res) => {
+      try {
+        const { userName, userEmail, userImage, userRole } = req.body;
 
-    // basic validation
-    if (!userName || !userEmail || !userImage || !userRole) {
-      return res.status(400).json({ message: 'All fields are required: userName, userEmail, userImage, userRole' });
-    }
+        // basic validation
+        if (!userName || !userEmail || !userImage || !userRole) {
+          return res.status(400).json({ message: 'All fields are required: userName, userEmail, userImage, userRole' });
+        }
 
-    // check if user already exists by email
-    const existingUser = await usersCollection.findOne({ userEmail });
-    if (existingUser) {
-      return res.status(200).json({
-        message: 'User already exists',
-        user: existingUser
-      });
-    }
+        // check if user already exists by email
+        const existingUser = await usersCollection.findOne({ userEmail });
+        if (existingUser) {
+          return res.status(200).json({
+            message: 'User already exists',
+            user: existingUser
+          });
+        }
 
-    // create new user object
-    const newUser = {
-      userName,
-      userEmail,
-      userImage,
-      userRole,
-      createdAt: new Date()
-    };
+        // create new user object
+        const newUser = {
+          userName,
+          userEmail,
+          userImage,
+          userRole,
+          createdAt: new Date()
+        };
 
-    // insert new user
-    const result = await usersCollection.insertOne(newUser);
+        // insert new user
+        const result = await usersCollection.insertOne(newUser);
 
-    res.status(201).json({
-      message: 'User added successfully',
-      userId: result.insertedId,
-      user: newUser
+        res.status(201).json({
+          message: 'User added successfully',
+          userId: result.insertedId,
+          user: newUser
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server Error' });
+      }
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server Error' });
-  }
-});
 
 
 
@@ -95,6 +95,38 @@ app.post('/api/users', async (req, res) => {
         res.status(500).json({ message: 'Server Error' });
       }
     });
+
+    // api for creating a new contest
+    app.post('/api/contests', async (req, res) => {
+      try {
+        const { title, startTime, endTime, problems } = req.body;
+
+        // validate input
+        if (!title || !startTime || !endTime) {
+          return res.status(400).json({ message: 'Title, startTime, and endTime are required.' });
+        }
+
+        const newContest = {
+          title,
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          problems: problems || [], // array of problem IDs
+          createdAt: new Date()
+        };
+
+        const result = await contestCollection.insertOne(newContest);
+
+        res.status(201).json({
+          message: 'Contest created successfully',
+          contestId: result.insertedId,
+          contest: newContest
+        });
+      } catch (err) {
+        console.error('Error creating contest:', err);
+        res.status(500).json({ message: 'Server Error' });
+      }
+    });
+
 
 
     // api for getting contests with problems
