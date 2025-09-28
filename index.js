@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 const port = process.env.PORT || 3000;
 
 app.use(cors());
@@ -27,6 +27,7 @@ async function run() {
     const problemCollection = db.collection("problems");
     const contestCollection = db.collection("contests");
     const usersCollection = db.collection("users");
+    const submissionsCollection = db.collection("submissions");
 
     // api for sorting problem data with difficulty and category
     app.get("/api/problems", async (req, res) => {
@@ -82,7 +83,7 @@ async function run() {
       try {
         const id = req.params.id;
         const problem = await problemCollection.findOne({
-          _id: (id),
+          _id: id,
         });
 
         if (!problem) return res.status(404).send("Problem not found");
@@ -100,12 +101,10 @@ async function run() {
 
         // basic validation
         if (!userName || !userEmail || !userImage || !userRole) {
-          return res
-            .status(400)
-            .json({
-              message:
-                "All fields are required: userName, userEmail, userImage, userRole",
-            });
+          return res.status(400).json({
+            message:
+              "All fields are required: userName, userEmail, userImage, userRole",
+          });
         }
 
         // check if user already exists by email
@@ -136,6 +135,55 @@ async function run() {
         });
       } catch (err) {
         console.error(err);
+        res.status(500).json({ message: "Server Error" });
+      }
+    });
+
+    // api for submitting solution
+    app.post("/api/submissions", async (req, res) => {
+      try {
+        const {
+          userEmail,
+          userName,
+          status,
+          problemTitle,
+          problemDifficulty,
+          problemCategory,
+          point,
+        } = req.body;
+
+        if (
+          !userEmail ||
+          !userName ||
+          !status ||
+          !problemTitle ||
+          !problemDifficulty ||
+          !problemCategory ||
+          point === undefined
+        ) {
+          return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const submission = {
+          userEmail,
+          userName,
+          status,
+          problemTitle,
+          problemDifficulty,
+          problemCategory,
+          point,
+          submittedAt: new Date(),
+        };
+
+        const result = await submissionsCollection.insertOne(submission);
+
+        res.status(201).json({
+          message: "Submission saved",
+          submissionId: result.insertedId,
+          submission,
+        });
+      } catch (err) {
+        console.error("Error saving submission:", err);
         res.status(500).json({ message: "Server Error" });
       }
     });
