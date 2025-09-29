@@ -2,11 +2,42 @@ require('dotenv').config();
 const express = require('express')
 const app = express()
 const cors = require('cors')
+const cookieParser = require('cookie-parser');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const port = process.env.PORT || 3000
 
-app.use(cors());
+
+// Middleware
+
+const corsOptions = {
+  origin: ["http://localhost:5173", "https://codeclash.vercel.app"],
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+
+
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
+
+
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+
+
+  if (!token) {
+    return res.status(401).send({ message: 'unauthorized access' })
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decode) => {
+    if (err) {
+
+      return res.status(401).send({ message: 'unauthorized access' })
+    }
+    req.user = decode;
+    next();
+  })
+}
+
 
 
 
@@ -76,7 +107,7 @@ app.post('/api/users', async (req, res) => {
 
 
     // api for sorting problem data with difficulty and category
-    app.get('/api/problems', async (req, res) => {
+    app.get('/api/problems', verifyToken, async (req, res) => {
       try {
         const { difficulty, category } = req.query;
 
