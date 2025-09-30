@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const { default: axios } = require("axios");
 const port = process.env.PORT || 3000;
 
@@ -51,6 +51,39 @@ async function run() {
       }
     });
 
+
+    // API to create a new contest
+    app.post("/api/contests", async (req, res) => {
+      try {
+        const { title, startTime, endTime, problems, type } = req.body;
+
+        // basic validation
+        if (!title || !startTime || !endTime || !problems || !type) {
+          return res
+            .status(400)
+            .json({ message: "All fields are required: title, startTime, endTime, problems, type" });
+        }
+
+        // create contest object
+        const newContest = {
+          title,
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          problems, // array of problem _id strings
+          type, // "individual" or "team"
+          createdAt: new Date(),
+        };
+
+        const result = await contestCollection.insertOne(newContest);
+
+        res.status(201).json({ ...newContest, _id: result.insertedId });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server Error" });
+      }
+    });
+
+
     // api for getting contests with problems
     app.get("/api/contests", async (req, res) => {
       try {
@@ -76,6 +109,37 @@ async function run() {
       } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server Error" });
+      }
+    });
+
+    // Get single contest by ID
+
+    app.get("/api/contests/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        let contest;
+
+        // Try as ObjectId (for dynamically created contests)
+        if (ObjectId.isValid(id)) {
+          contest = await contestCollection.findOne({ _id: new ObjectId(id) });
+        }
+
+        // If not found, try as string (for static contests)
+        if (!contest) {
+          contest = await contestCollection.findOne({ _id: id });
+        }
+
+        if (!contest) return res.status(404).json({ message: "Contest not found" });
+
+        // populate problems
+        const problems = await problemCollection
+          .find({ _id: { $in: contest.problems.map(pid => ObjectId.isValid(pid) ? new ObjectId(pid) : pid) } })
+          .toArray();
+
+        res.status(200).json({ ...contest, problems });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
       }
     });
 
