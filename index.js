@@ -51,7 +51,6 @@ async function run() {
       }
     });
 
-
     // API to create a new contest
     app.post("/api/contests", async (req, res) => {
       try {
@@ -61,7 +60,10 @@ async function run() {
         if (!title || !startTime || !endTime || !problems || !type) {
           return res
             .status(400)
-            .json({ message: "All fields are required: title, startTime, endTime, problems, type" });
+            .json({
+              message:
+                "All fields are required: title, startTime, endTime, problems, type",
+            });
         }
 
         // create contest object
@@ -82,7 +84,6 @@ async function run() {
         res.status(500).json({ message: "Server Error" });
       }
     });
-
 
     // api for getting contests with problems
     app.get("/api/contests", async (req, res) => {
@@ -129,11 +130,18 @@ async function run() {
           contest = await contestCollection.findOne({ _id: id });
         }
 
-        if (!contest) return res.status(404).json({ message: "Contest not found" });
+        if (!contest)
+          return res.status(404).json({ message: "Contest not found" });
 
         // populate problems
         const problems = await problemCollection
-          .find({ _id: { $in: contest.problems.map(pid => ObjectId.isValid(pid) ? new ObjectId(pid) : pid) } })
+          .find({
+            _id: {
+              $in: contest.problems.map((pid) =>
+                ObjectId.isValid(pid) ? new ObjectId(pid) : pid
+              ),
+            },
+          })
           .toArray();
 
         res.status(200).json({ ...contest, problems });
@@ -156,6 +164,32 @@ async function run() {
         res.send(problem);
       } catch (err) {
         res.status(500).send("Server error");
+      }
+    });
+
+    // Get submissions of a single user by email
+    app.get("/api/submissions/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+
+        if (!email) {
+          return res.status(400).json({ message: "Email is required" });
+        }
+
+        // find submissions by userEmail
+        const submissions = await submissionsCollection
+          .find({ userEmail: email })
+          .sort({ submittedAt: -1 })
+          .toArray();
+
+        if (!submissions || submissions.length === 0) {
+          return res.status(404).json({ message: "No submissions found" });
+        }
+
+        res.status(200).json(submissions);
+      } catch (err) {
+        console.error("Error fetching submissions:", err);
+        res.status(500).json({ message: "Server Error" });
       }
     });
 
@@ -253,7 +287,7 @@ async function run() {
       }
     });
 
-    // monaco Editor with javascript, python, java and c
+    //monaco Editor with javascript, python, java and c
     app.post("/run-code", async (req, res) => {
       const { code, language, input } = req.body;
 
