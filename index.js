@@ -58,12 +58,10 @@ async function run() {
 
         // basic validation
         if (!title || !startTime || !endTime || !problems || !type) {
-          return res
-            .status(400)
-            .json({
-              message:
-                "All fields are required: title, startTime, endTime, problems, type",
-            });
+          return res.status(400).json({
+            message:
+              "All fields are required: title, startTime, endTime, problems, type",
+          });
         }
 
         // create contest object
@@ -189,6 +187,70 @@ async function run() {
         res.status(200).json(submissions);
       } catch (err) {
         console.error("Error fetching submissions:", err);
+        res.status(500).json({ message: "Server Error" });
+      }
+    });
+
+    // get single user total point + success/failure + growth
+    app.get("/api/points/:email", async (req, res) => {
+      const { email } = req.params;
+
+      try {
+        const result = await submissionsCollection
+          .aggregate([
+            { $match: { userEmail: email } },
+            {
+              $group: {
+                _id: "$userEmail",
+                totalPoints: { $sum: "$point" },
+                totalSubmissions: { $sum: 1 },
+                successCount: {
+                  $sum: { $cond: [{ $eq: ["$status", "Success"] }, 1, 0] },
+                },
+                failureCount: {
+                  $sum: { $cond: [{ $eq: ["$status", "Failure"] }, 1, 0] },
+                },
+                growth: {
+                  $push: {
+                    date: {
+                      $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$submittedAt",
+                      },
+                    },
+                    count: 1,
+                  },
+                },
+              },
+            },
+          ])
+          .toArray();
+
+        if (result.length === 0) {
+          return res
+            .status(404)
+            .json({ message: "User not found or no submissions" });
+        }
+
+        // growthMap type annotation সরিয়ে দেওয়া
+        const growthMap = {};
+        result[0].growth.forEach((g) => {
+          growthMap[g.date] = (growthMap[g.date] || 0) + g.count;
+        });
+
+        const growth = Object.keys(growthMap)
+          .sort()
+          .map((date) => ({ date, count: growthMap[date] }));
+        res.json({
+          email: result[0]._id,
+          totalPoints: result[0].totalPoints,
+          totalSubmissions: result[0].totalSubmissions,
+          successCount: result[0].successCount,
+          failureCount: result[0].failureCount,
+          growth,
+        });
+      } catch (err) {
+        console.error(err);
         res.status(500).json({ message: "Server Error" });
       }
     });
