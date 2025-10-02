@@ -1,273 +1,36 @@
 require("dotenv").config();
 const express = require("express");
-const app = express();
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { connectDB } = require("./db");
+
+const problemsRouter = require("./routes/problems");
+const contestsRouter = require("./routes/contests");
+const usersRouter = require("./routes/users");
+
+const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.zffyl01.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-
-async function run() {
-  try {
-    await client.connect();
-
-    const db = client.db("codeClash");
-    const problemCollection = db.collection("problems");
-    const contestCollection = db.collection("contests");
-    const usersCollection = db.collection("users");
-    const submissionsCollection = db.collection("submissions");
-
-    // api for sorting problem data with difficulty and category
-    app.get("/api/problems", async (req, res) => {
-      try {
-        const { difficulty, category } = req.query;
-
-        const query = {};
-        if (difficulty) query.difficulty = difficulty;
-        if (category) query.category = category;
-
-        const problems = await problemCollection
-          .find(query)
-          .sort({ createdAt: -1 })
-          .toArray();
-
-        res.json(problems);
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error" });
-      }
-    });
-
-
-    // API to create a new contest
-    app.post("/api/contests", async (req, res) => {
-      try {
-        const { title, startTime, endTime, problems, type } = req.body;
-
-        // basic validation
-        if (!title || !startTime || !endTime || !problems || !type) {
-          return res
-            .status(400)
-            .json({ message: "All fields are required: title, startTime, endTime, problems, type" });
-        }
-
-        // create contest object
-        const newContest = {
-          title,
-          startTime: new Date(startTime),
-          endTime: new Date(endTime),
-          problems, // array of problem _id strings
-          type, // "individual" or "team"
-          createdAt: new Date(),
-        };
-
-        const result = await contestCollection.insertOne(newContest);
-
-        res.status(201).json({ ...newContest, _id: result.insertedId });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error" });
-      }
-    });
-
-
-    // api for getting contests with problems
-    app.get("/api/contests", async (req, res) => {
-      try {
-        const contests = await contestCollection
-          .find()
-          .sort({ startTime: 1 })
-          .toArray();
-
-        const contestsWithProblems = await Promise.all(
-          contests.map(async (contest) => {
-            const problems = await problemCollection
-              .find({ _id: { $in: contest.problems } })
-              .toArray();
-
-            return {
-              ...contest,
-              problems,
-            };
-          })
-        );
-
-        res.status(200).json(contestsWithProblems);
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error" });
-      }
-    });
-
-    // Get single contest by ID
-
-    app.get("/api/contests/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        let contest;
-
-        // Try as ObjectId (for dynamically created contests)
-        if (ObjectId.isValid(id)) {
-          contest = await contestCollection.findOne({ _id: new ObjectId(id) });
-        }
-
-        // If not found, try as string (for static contests)
-        if (!contest) {
-          contest = await contestCollection.findOne({ _id: id });
-        }
-
-        if (!contest) return res.status(404).json({ message: "Contest not found" });
-
-        // populate problems
-        const problems = await problemCollection
-          .find({ _id: { $in: contest.problems.map(pid => ObjectId.isValid(pid) ? new ObjectId(pid) : pid) } })
-          .toArray();
-
-        res.status(200).json({ ...contest, problems });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server error" });
-      }
-    });
-
-    // get single problem
-    app.get("/api/problems/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const problem = await problemCollection.findOne({
-          _id: id,
-        });
-
-        if (!problem) return res.status(404).send("Problem not found");
-
-        res.send(problem);
-      } catch (err) {
-        res.status(500).send("Server error");
-      }
-    });
-
-    // api for adding a new user
-    app.post("/api/users", async (req, res) => {
-      try {
-        const { userName, userEmail, userImage, userRole } = req.body;
-
-        // basic validation
-        if (!userName || !userEmail || !userImage || !userRole) {
-          return res.status(400).json({
-            message:
-              "All fields are required: userName, userEmail, userImage, userRole",
-          });
-        }
-
-        // check if user already exists by email
-        const existingUser = await usersCollection.findOne({ userEmail });
-        if (existingUser) {
-          return res.status(200).json({
-            message: "User already exists",
-            user: existingUser,
-          });
-        }
-
-        // create new user object
-        const newUser = {
-          userName,
-          userEmail,
-          userImage,
-          userRole,
-          createdAt: new Date(),
-        };
-
-        // insert new user
-        const result = await usersCollection.insertOne(newUser);
-
-        res.status(201).json({
-          message: "User added successfully",
-          userId: result.insertedId,
-          user: newUser,
-        });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server Error" });
-      }
-    });
-
-    // api for submitting solution
-    app.post("/api/submissions", async (req, res) => {
-      try {
-        const {
-          userEmail,
-          userName,
-          status,
-          problemTitle,
-          problemDifficulty,
-          problemCategory,
-          point,
-        } = req.body;
-
-        if (
-          !userEmail ||
-          !userName ||
-          !status ||
-          !problemTitle ||
-          !problemDifficulty ||
-          !problemCategory ||
-          point === undefined
-        ) {
-          return res.status(400).json({ message: "Missing required fields" });
-        }
-
-        const submission = {
-          userEmail,
-          userName,
-          status,
-          problemTitle,
-          problemDifficulty,
-          problemCategory,
-          point,
-          submittedAt: new Date(),
-        };
-
-        const result = await submissionsCollection.insertOne(submission);
-
-        res.status(201).json({
-          message: "Submission saved",
-          submissionId: result.insertedId,
-          submission,
-        });
-      } catch (err) {
-        console.error("Error saving submission:", err);
-        res.status(500).json({ message: "Server Error" });
-      }
-    });
-
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
-  }
-}
-run().catch(console.dir);
+// Routes
+app.use("/api/problems", problemsRouter);
+app.use("/api/contests", contestsRouter);
+app.use("/api/users", usersRouter);
 
 app.get("/", (req, res) => {
-  res.send("Wellcome to my codeClash");
+  res.send("Welcome to my codeClash");
 });
 
-app.listen(port, () => {
-  console.log(`Wellcome to my codeClash app on port ${port}`);
-});
+// Start server after DB is ready
+(async () => {
+  try {
+    await connectDB();
+    app.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (err) {
+    console.error("Failed to connect DB", err);
+    process.exit(1);
+  }
+})();
