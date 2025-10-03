@@ -1,22 +1,16 @@
-require('dotenv').config();
-const express = require('express')
-const app = express()
-const cors = require('cors')
-const cookieParser = require('cookie-parser');
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const port = process.env.PORT || 3000
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const { connectDB } = require("./db");
 
+const problemsRouter = require("./routes/problems");
+const contestsRouter = require("./routes/contests");
+const usersRouter = require("./routes/users");
 
-// Middleware
+const app = express();
+const port = process.env.PORT || 3000;
 
-const corsOptions = {
-  origin: ["http://localhost:5173", "https://codeclash.vercel.app"],
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
-
-
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
@@ -42,18 +36,17 @@ const verifyToken = async (req, res, next) => {
 
 
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.zffyl01.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// Routes
+app.use("/api/problems", problemsRouter);
+app.use("/api/contests", contestsRouter);
+app.use("/api/users", usersRouter);
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
+app.get("/", (req, res) => {
+  res.send("Welcome to my codeClash");
 });
 
-async function run() {
+// Start server after DB is ready
+(async () => {
   try {
     await client.connect();
 
@@ -387,13 +380,4 @@ async function run() {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
-}
-run().catch(console.dir);
-
-app.get("/", (req, res) => {
-  res.send("Wellcome to my codeClash");
-});
-
-app.listen(port, () => {
-  console.log(`Wellcome to my codeClash app on port ${port}`);
-});
+})();
