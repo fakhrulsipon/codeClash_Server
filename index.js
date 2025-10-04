@@ -6,6 +6,7 @@ const { connectDB } = require("./db");
 const problemsRouter = require("./routes/problems");
 const contestsRouter = require("./routes/contests");
 const usersRouter = require("./routes/users");
+const teamsRouter = require("./routes/teams");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ const verifyToken = async (req, res, next) => {
 app.use("/api/problems", problemsRouter);
 app.use("/api/contests", contestsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/teams", teamsRouter);
 
 app.get("/", (req, res) => {
   res.send("Welcome to my codeClash");
