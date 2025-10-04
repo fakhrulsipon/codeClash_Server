@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser"); // ✅ You forgot to import this
 const { connectDB } = require("./db");
 
 const problemsRouter = require("./routes/problems");
@@ -11,26 +12,28 @@ const teamsRouter = require("./routes/teams");
 const app = express();
 const port = process.env.PORT || 3000;
 
+// ✅ Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
-// Routes
+// ✅ Routes
 app.use("/api/problems", problemsRouter);
 app.use("/api/contests", contestsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/teams", teamsRouter);
 
-// Root route
+// ✅ Root route
 app.get("/", (req, res) => {
   res.send("Welcome to CodeClash API 🚀");
 });
 
-// Connect DB once when deployed
 (async () => {
   try {
     await connectDB();
     console.log("✅ MongoDB connected successfully");
 
+    // Run server only in local development
     if (process.env.NODE_ENV !== "production") {
       app.listen(port, () => {
         console.log(`Server running locally on port ${port}`);
