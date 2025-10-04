@@ -35,4 +35,40 @@ router.post("/", async (req, res) => {
   }
 });
 
+// GET all users
+router.get("/", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection("users");
+
+    const users = await usersCollection.find().toArray();
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+
+// GET user by email
+router.get("/:email", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection("users");
+
+    const { email } = req.params;
+    const user = await usersCollection.findOne({ userEmail: email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
+
 module.exports = router;
