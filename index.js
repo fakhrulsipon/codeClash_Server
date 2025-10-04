@@ -20,19 +20,26 @@ app.use("/api/contests", contestsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/teams", teamsRouter);
 
+// Root route
 app.get("/", (req, res) => {
-  res.send("Welcome to my codeClash");
+  res.send("Welcome to CodeClash API 🚀");
 });
 
-// Start server after DB is ready
+// Connect DB once when deployed
 (async () => {
   try {
     await connectDB();
-    app.listen(port, () => {
-      console.log(`Server running on port ${port}`);
-    });
+    console.log("✅ MongoDB connected successfully");
+
+    if (process.env.NODE_ENV !== "production") {
+      app.listen(port, () => {
+        console.log(`Server running locally on port ${port}`);
+      });
+    }
   } catch (err) {
-    console.error("Failed to connect DB", err);
+    console.error("❌ Failed to connect DB", err);
     process.exit(1);
   }
 })();
+
+module.exports = app;
