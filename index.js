@@ -1,50 +1,55 @@
 require('dotenv').config();
-const express = require('express')
-const app = express()
-const cors = require('cors')
+const express = require('express');
+const app = express();
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const cookieParser = require('cookie-parser');
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const port = process.env.PORT || 3000
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
+const port = process.env.PORT || 3000;
 
-// Middleware
-
+// ---------------------------
+// Middleware Setup
+// ---------------------------
 const corsOptions = {
   origin: ["http://localhost:5173", "https://codeclash.vercel.app"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
 
-
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
-
-
-
+// ---------------------------
+// JWT Verification Middleware
+// ---------------------------
 const verifyToken = async (req, res, next) => {
-  const token = req.cookies?.token;
-
-
-  if (!token) {
-    return res.status(401).send({ message: 'unauthorized access' })
-  }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decode) => {
-    if (err) {
-
-      return res.status(401).send({ message: 'unauthorized access' })
+  try {
+    const token = req.cookies?.token;
+    if (!token) {
+      return res.status(401).json({ message: 'unauthorized access' });
     }
-    req.user = decode;
-    next();
-  })
-}
 
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ message: 'unauthorized access' });
+      }
+      req.user = decoded;
+      next();
+    });
+  } catch (error) {
+    console.error("JWT Verification Error:", error);
+    res.status(500).json({ message: "Token verification failed" });
+  }
+};
 
-
+// ---------------------------
+// MongoDB Setup
+// ---------------------------
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.zffyl01.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -53,9 +58,13 @@ const client = new MongoClient(uri, {
   },
 });
 
+// ---------------------------
+// Main Function
+// ---------------------------
 async function run() {
   try {
     await client.connect();
+    console.log("✅ Connected to MongoDB!");
 
     const db = client.db("codeClash");
     const problemCollection = db.collection("problems");
@@ -63,68 +72,55 @@ async function run() {
     const usersCollection = db.collection("users");
     const submissionsCollection = db.collection("submissions");
 
-    // api for sorting problem data with difficulty and category
+    // ---------------------------
+    // Routes
+    // ---------------------------
+
+    // 🧩 Get problems (filter by difficulty/category)
     app.get('/api/problems', async (req, res) => {
       try {
         const { difficulty, category } = req.query;
-
         const query = {};
         if (difficulty) query.difficulty = difficulty;
         if (category) query.category = category;
 
-        const problems = await problemCollection
-          .find(query)
-          .sort({ createdAt: -1 })
-          .toArray();
-
-        res.json(problems);
-      } catch (err) {
-        console.error(err);
+        const problems = await problemCollection.find(query).sort({ createdAt: -1 }).toArray();
+        res.status(200).json(problems);
+      } catch (error) {
+        console.error("Error fetching problems:", error);
         res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // API to create a new contest
-    app.post("/api/contests", async (req, res) => {
+    // 🧩 Create a new contest
+    app.post('/api/contests', async (req, res) => {
       try {
         const { title, startTime, endTime, problems, type } = req.body;
-
-        // basic validation
         if (!title || !startTime || !endTime || !problems || !type) {
-          return res
-            .status(400)
-            .json({
-              message:
-                "All fields are required: title, startTime, endTime, problems, type",
-            });
+          return res.status(400).json({ message: "All fields are required" });
         }
 
-        // create contest object
         const newContest = {
           title,
           startTime: new Date(startTime),
           endTime: new Date(endTime),
-          problems, // array of problem _id strings
-          type, // "individual" or "team"
+          problems,
+          type,
           createdAt: new Date(),
         };
 
         const result = await contestCollection.insertOne(newContest);
-
         res.status(201).json({ ...newContest, _id: result.insertedId });
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error("Error creating contest:", error);
         res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // api for getting contests with problems
-    app.get("/api/contests",  async (req, res) => {
+    // 🧩 Get contests with problem details
+    app.get('/api/contests', async (req, res) => {
       try {
-        const contests = await contestCollection
-          .find()
-          .sort({ startTime: 1 })
-          .toArray();
+        const contests = await contestCollection.find().sort({ startTime: 1 }).toArray();
 
         const contestsWithProblems = await Promise.all(
           contests.map(async (contest) => {
@@ -132,45 +128,35 @@ async function run() {
               .find({ _id: { $in: contest.problems } })
               .toArray();
 
-            return {
-              ...contest,
-              problems,
-            };
+            return { ...contest, problems };
           })
         );
 
         res.status(200).json(contestsWithProblems);
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error("Error fetching contests:", error);
         res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // Get single contest by ID
-
-    app.get("/api/contests/:id", async (req, res) => {
+    // 🧩 Get single contest by ID
+    app.get('/api/contests/:id', async (req, res) => {
       try {
-        const id = req.params.id;
-        let contest;
+        const { id } = req.params;
+        let contest = null;
 
-        // Try as ObjectId (for dynamically created contests)
         if (ObjectId.isValid(id)) {
           contest = await contestCollection.findOne({ _id: new ObjectId(id) });
-        }
-
-        // If not found, try as string (for static contests)
-        if (!contest) {
+        } else {
           contest = await contestCollection.findOne({ _id: id });
         }
 
-        if (!contest)
-          return res.status(404).json({ message: "Contest not found" });
+        if (!contest) return res.status(404).json({ message: "Contest not found" });
 
-        // populate problems
         const problems = await problemCollection
           .find({
             _id: {
-              $in: contest.problems.map((pid) =>
+              $in: contest.problems.map(pid =>
                 ObjectId.isValid(pid) ? new ObjectId(pid) : pid
               ),
             },
@@ -178,101 +164,65 @@ async function run() {
           .toArray();
 
         res.status(200).json({ ...contest, problems });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Server error" });
+      } catch (error) {
+        console.error("Error fetching contest:", error);
+        res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // get single problem
-    app.get("/api/problems/:id", async (req, res) => {
+    // 🧩 Get single problem by ID
+    app.get('/api/problems/:id', async (req, res) => {
       try {
-        const id = req.params.id;
-        const problem = await problemCollection.findOne({
-          _id: id,
-        });
-
-        if (!problem) return res.status(404).send("Problem not found");
-
-        res.send(problem);
-      } catch (err) {
-        res.status(500).send("Server error");
+        const { id } = req.params;
+        const problem = await problemCollection.findOne({ _id: id });
+        if (!problem) return res.status(404).json({ message: "Problem not found" });
+        res.status(200).json(problem);
+      } catch (error) {
+        console.error("Error fetching problem:", error);
+        res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // Get submissions of a single user by email
-    app.get("/api/submissions/:email", async (req, res) => {
+    // 🧩 Get submissions by user email
+    app.get('/api/submissions/:email', async (req, res) => {
       try {
-        const email = req.params.email;
+        const { email } = req.params;
+        if (!email) return res.status(400).json({ message: "Email required" });
 
-        if (!email) {
-          return res.status(400).json({ message: "Email is required" });
-        }
-
-        // find submissions by userEmail
         const submissions = await submissionsCollection
           .find({ userEmail: email })
           .sort({ submittedAt: -1 })
           .toArray();
 
-        if (!submissions || submissions.length === 0) {
-          return res.status(404).json({ message: "No submissions found" });
-        }
-
         res.status(200).json(submissions);
-      } catch (err) {
-        console.error("Error fetching submissions:", err);
+      } catch (error) {
+        console.error("Error fetching submissions:", error);
         res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // api for adding a new user
-    app.post("/api/users", async (req, res) => {
+    // 🧩 Add user
+    app.post('/api/users', async (req, res) => {
       try {
         const { userName, userEmail, userImage, userRole } = req.body;
+        if (!userName || !userEmail || !userImage || !userRole)
+          return res.status(400).json({ message: "All fields required" });
 
-        // basic validation
-        if (!userName || !userEmail || !userImage || !userRole) {
-          return res.status(400).json({
-            message:
-              "All fields are required: userName, userEmail, userImage, userRole",
-          });
-        }
-
-        // check if user already exists by email
         const existingUser = await usersCollection.findOne({ userEmail });
-        if (existingUser) {
-          return res.status(200).json({
-            message: "User already exists",
-            user: existingUser,
-          });
-        }
+        if (existingUser) return res.status(200).json({ message: "User already exists", user: existingUser });
 
-        // create new user object
-        const newUser = {
-          userName,
-          userEmail,
-          userImage,
-          userRole,
-          createdAt: new Date(),
-        };
-
-        // insert new user
+        const newUser = { userName, userEmail, userImage, userRole, createdAt: new Date() };
         const result = await usersCollection.insertOne(newUser);
 
-        res.status(201).json({
-          message: "User added successfully",
-          userId: result.insertedId,
-          user: newUser,
-        });
-      } catch (err) {
-        console.error(err);
+        res.status(201).json({ message: "User added successfully", userId: result.insertedId, user: newUser });
+      } catch (error) {
+        console.error("Error adding user:", error);
         res.status(500).json({ message: "Server Error" });
       }
     });
 
-    // api for submitting solution
-    app.post("/api/submissions", async (req, res) => {
+    // 🧩 Add submission
+    app.post('/api/submissions', async (req, res) => {
       try {
         const {
           userEmail,
@@ -308,41 +258,35 @@ async function run() {
         };
 
         const result = await submissionsCollection.insertOne(submission);
-
-        res.status(201).json({
-          message: "Submission saved",
-          submissionId: result.insertedId,
-          submission,
-        });
-      } catch (err) {
-        console.error("Error saving submission:", err);
+        res.status(201).json({ message: "Submission saved", submissionId: result.insertedId, submission });
+      } catch (error) {
+        console.error("Error saving submission:", error);
         res.status(500).json({ message: "Server Error" });
       }
     });
 
-    //monaco Editor with javascript, python, java and c
-    app.post("/run-code", async (req, res) => {
-      const { code, language, input } = req.body;
-
-      const languageMap = {
-        javascript: 63,
-        python: 71,
-        java: 62,
-        c: 50, // Judge0 C language
-        cpp: 54,
-      };
-
-      const language_id = languageMap[language.toLowerCase()];
-      if (!language_id)
-        return res.status(400).json({ error: "Invalid language" });
-
-      const payload = {
-        source_code: Buffer.from(code).toString("base64"),
-        language_id,
-        stdin: input ? Buffer.from(input).toString("base64") : "",
-      };
-
+    // 🧩 Code Execution (Judge0)
+    app.post('/run-code', async (req, res) => {
       try {
+        const { code, language, input } = req.body;
+
+        const languageMap = {
+          javascript: 63,
+          python: 71,
+          java: 62,
+          c: 50,
+          cpp: 54,
+        };
+
+        const language_id = languageMap[language?.toLowerCase()];
+        if (!language_id) return res.status(400).json({ error: "Invalid language" });
+
+        const payload = {
+          source_code: Buffer.from(code).toString("base64"),
+          language_id,
+          stdin: input ? Buffer.from(input).toString("base64") : "",
+        };
+
         const response = await axios.post(
           `${process.env.JUDGE0_API_URL}/submissions?wait=true&base64_encoded=true`,
           payload,
@@ -357,43 +301,40 @@ async function run() {
 
         const output = response.data;
 
-        // ✅ Decode all outputs
         const decodedOutput = {
-          stdout: output.stdout
-            ? Buffer.from(output.stdout, "base64").toString("utf8")
-            : "",
-          stderr: output.stderr
-            ? Buffer.from(output.stderr, "base64").toString("utf8")
-            : "",
-          compile_output: output.compile_output
-            ? Buffer.from(output.compile_output, "base64").toString("utf8")
-            : "",
-          status: output.status.description,
+          stdout: output.stdout ? Buffer.from(output.stdout, "base64").toString("utf8") : "",
+          stderr: output.stderr ? Buffer.from(output.stderr, "base64").toString("utf8") : "",
+          compile_output: output.compile_output ? Buffer.from(output.compile_output, "base64").toString("utf8") : "",
+          status: output.status?.description,
         };
 
-        res.json(decodedOutput);
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Something went wrong" });
+        res.status(200).json(decodedOutput);
+      } catch (error) {
+        console.error("Error running code:", error);
+        res.status(500).json({ error: "Judge0 API error or invalid request" });
       }
     });
 
-    // Send a ping to confirm a successful connection
+    // ✅ Ping confirmation
     await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+    console.log("✅ MongoDB ping successful!");
+  } catch (error) {
+    console.error("❌ Error in run():", error);
   }
 }
-run().catch(console.dir);
 
+run().catch((err) => console.error("❌ Run function failed:", err));
+
+// ---------------------------
+// Root Route
+// ---------------------------
 app.get("/", (req, res) => {
-  res.send("Wellcome to my codeClash");
+  res.send("Welcome to CodeClash Server 🚀");
 });
 
+// ---------------------------
+// Start Server
+// ---------------------------
 app.listen(port, () => {
-  console.log(`Wellcome to my codeClash app on port ${port}`);
+  console.log(`🚀 CodeClash server running on port ${port}`);
 });
