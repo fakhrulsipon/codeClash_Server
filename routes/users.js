@@ -50,7 +50,7 @@ router.get("/", async (req, res) => {
 });
 
 
-// GET user by email
+// GET user by is email
 router.get("/:email", async (req, res) => {
   try {
     const db = await connectDB();
