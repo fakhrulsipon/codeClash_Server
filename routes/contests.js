@@ -86,4 +86,77 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// Update contest (edit title, time, problems, etc.)
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const db = await connectDB();
+    const contestCollection = db.collection("contests");
+
+    const result = await contestCollection.updateOne(
+      { _id: ObjectId.isValid(id) ? new ObjectId(id) : id },
+      { $set: updates }
+    );
+
+    if (result.modifiedCount === 0)
+      return res.status(404).json({ message: "Contest not found" });
+
+    res.status(200).json({ message: "Contest updated successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update contest" });
+  }
+});
+
+// Toggle pause/unpause
+router.patch("/:id/toggle", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await connectDB();
+    const contestCollection = db.collection("contests");
+
+    const contest = await contestCollection.findOne({
+      _id: ObjectId.isValid(id) ? new ObjectId(id) : id,
+    });
+
+    if (!contest) return res.status(404).json({ message: "Contest not found" });
+
+    const updated = await contestCollection.updateOne(
+      { _id: contest._id },
+      { $set: { paused: !contest.paused } }
+    );
+
+    res.status(200).json({
+      message: `Contest ${contest.paused ? "unpaused" : "paused"} successfully`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to toggle contest status" });
+  }
+});
+
+// Delete contest
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const db = await connectDB();
+    const contestCollection = db.collection("contests");
+
+    const result = await contestCollection.deleteOne({
+      _id: ObjectId.isValid(id) ? new ObjectId(id) : id,
+    });
+
+    if (result.deletedCount === 0)
+      return res.status(404).json({ message: "Contest not found" });
+
+    res.status(200).json({ message: "Contest deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to delete contest" });
+  }
+});
+
 module.exports = router;
