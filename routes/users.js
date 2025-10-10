@@ -1,5 +1,6 @@
 const express = require("express");
 const { connectDB } = require("../db");
+const { verifyFBToken } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.get("/:email", async (req, res) => {
 });
 
 // Get submissions of a single user by email
-    router.get("/submissions/:email", async (req, res) => {
+    router.get("/submissions/:email", verifyFBToken, async (req, res) => {
       try {
         const db = await connectDB();
         const submissionsCollection = db.collection("submissions");
@@ -101,7 +102,7 @@ router.get("/:email", async (req, res) => {
 
 
     // get single user total point + success/failure + growth
-    router.get("/profile/:email", async (req, res) => {
+    router.get("/profile/:email", verifyFBToken, async (req, res) => {
       const { email } = req.params;
 
       try {const db = await connectDB();
