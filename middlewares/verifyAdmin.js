@@ -8,7 +8,7 @@ const verifyAdmin = async (req, res, next) => {
       return res.status(401).send({ message: "unauthorized access" });
     }
 
-    // Database connect
+    
     const db = await connectDB();
     const usersCollection = db.collection("users");
 
