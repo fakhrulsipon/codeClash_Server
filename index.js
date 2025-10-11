@@ -23,7 +23,7 @@ app.use("/api/contests", contestsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/teams", teamsRouter);
 
-// ✅ Root route
+// Root route
 app.get("/", (req, res) => {
   res.send("Welcome to CodeClash API 🚀");
 });

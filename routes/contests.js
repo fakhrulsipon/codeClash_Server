@@ -2,11 +2,12 @@ const express = require("express");
 const { ObjectId } = require("mongodb");
 const { connectDB } = require("../db");
 const { verifyFBToken } = require("../middlewares/authMiddleware");
+const { verifyAdmin } = require("../middlewares/verifyAdmin");
 
 const router = express.Router();
 
 // Create contest
-router.post("/", async (req, res) => {
+router.post("/", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const contestCollection = db.collection("contests");
