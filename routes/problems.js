@@ -1,13 +1,12 @@
 const axios = require("axios");
 const express = require("express");
 const { connectDB } = require("../db");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
 
 
 const router = express.Router();
 
 // GET all problems with optional filters
-router.get("/", verifyFBToken, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const db = await connectDB();
     const problemCollection = db.collection("problems");
@@ -26,11 +25,10 @@ router.get("/", verifyFBToken, async (req, res) => {
 });
 
 // GET single problem
-router.get("/:id", verifyFBToken, async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const db = await connectDB();
     const problemCollection = db.collection("problems");
-
     const problem = await problemCollection.findOne({ _id: req.params.id });
     if (!problem) return res.status(404).send("Problem not found");
 
@@ -42,7 +40,7 @@ router.get("/:id", verifyFBToken, async (req, res) => {
 });
 
 // monaco Editor with javascript, python, java and c
-    router.post("/run-code", verifyFBToken, async (req, res) => {
+    router.post("/run-code", async (req, res) => {
       const { code, language, input } = req.body;
 
       const languageMap = {
@@ -65,7 +63,7 @@ router.get("/:id", verifyFBToken, async (req, res) => {
 
       try {
         const response = await axios.post(
-          `${process.env.JUDGE0_API_URL}/submissions?wait=true&base64_encoded=true`,
+          `${process.env.JUDGE0_API_URL}submissions?wait=true&base64_encoded=true`,
           payload,
           {
             headers: {
@@ -100,7 +98,7 @@ router.get("/:id", verifyFBToken, async (req, res) => {
     });
 
     // api for submitting solution
-    router.post("/submissions", verifyFBToken, async (req, res) => {
+    router.post("/submissions", async (req, res) => {
       try {
         const db = await connectDB();
         const submissionsCollection = db.collection("submissions");
