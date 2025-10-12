@@ -5,24 +5,31 @@ const { connectDB } = require("../db");
 
 const router = express.Router();
 
-// GET all problems with optional filters
+// GET all problems with optional filters and search
 router.get("/", async (req, res) => {
   try {
     const db = await connectDB();
     const problemCollection = db.collection("problems");
 
-    const { difficulty, category } = req.query;
+    const { difficulty, category, title } = req.query;
     const query = {};
+
     if (difficulty) query.difficulty = difficulty;
     if (category) query.category = category;
+    if (title) query.title = { $regex: title, $options: "i" };
 
-    const problems = await problemCollection.find(query).sort({ createdAt: -1 }).toArray();
+    const problems = await problemCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
     res.json(problems);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 });
+
 
 // GET single problem
 router.get("/:id", async (req, res) => {
