@@ -1,7 +1,6 @@
 const express = require("express");
 const { connectDB } = require("../db");
 const { ObjectId } = require("mongodb");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
 
 
 const router = express.Router();
@@ -9,7 +8,7 @@ const router = express.Router();
 // ---------------------------
 // Create a new team
 // ---------------------------
-router.post("/", verifyFBToken, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { name, contestId } = req.body;
 
@@ -45,7 +44,7 @@ router.post("/", verifyFBToken, async (req, res) => {
 // ---------------------------
 // Join a team
 // ---------------------------
-router.put("/:id/join", verifyFBToken, async (req, res) => {
+router.put("/:id/join", async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId; // ✅ use token

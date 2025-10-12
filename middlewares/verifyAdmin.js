@@ -4,6 +4,7 @@ const verifyAdmin = async (req, res, next) => {
   try {
    
     const email = req.decoded?.email;
+    console.log(email)
     if (!email) {
       return res.status(401).send({ message: "unauthorized access" });
     }
