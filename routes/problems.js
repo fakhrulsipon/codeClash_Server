@@ -2,6 +2,7 @@ const axios = require("axios");
 const express = require("express");
 const { connectDB } = require("../db");
 
+
 const router = express.Router();
 
 // Add a new problem
@@ -54,12 +55,18 @@ router.get("/", async (req, res) => {
     const db = await connectDB();
     const problemCollection = db.collection("problems");
 
-    const { difficulty, category } = req.query;
+    const { difficulty, category, title } = req.query;
     const query = {};
+
     if (difficulty) query.difficulty = difficulty;
     if (category) query.category = category;
+    if (title) query.title = { $regex: title, $options: "i" };
 
-    const problems = await problemCollection.find(query).sort({ createdAt: -1 }).toArray();
+    const problems = await problemCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
     res.json(problems);
   } catch (err) {
     console.error(err);
@@ -67,12 +74,12 @@ router.get("/", async (req, res) => {
   }
 });
 
+
 // GET single problem
 router.get("/:id", async (req, res) => {
   try {
     const db = await connectDB();
     const problemCollection = db.collection("problems");
-
     const problem = await problemCollection.findOne({ _id: req.params.id });
     if (!problem) return res.status(404).send("Problem not found");
 

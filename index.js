@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const cookieParser = require("cookie-parser"); // ✅ You forgot to import this
+const cookieParser = require("cookie-parser");
 const { connectDB } = require("./db");
 
 const problemsRouter = require("./routes/problems");
@@ -27,7 +27,7 @@ app.use("/api/teams", teamsRouter);
 app.use("/api/contestParticipants", participantsRouter);
 app.use("/api/contestSubmissions", contestSubmissionsRouter);
 
-// ✅ Root route
+// Root route
 app.get("/", (req, res) => {
   res.send("Welcome to CodeClash API 🚀");
 });

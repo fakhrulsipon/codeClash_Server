@@ -243,16 +243,174 @@ router.patch("/:teamCode/start", async (req, res) => {
   }
 });
 
-// TEMP: fetch all teams (for testing)
+// ==================== ADMIN ROUTES ====================
+
+// Get all teams (for admin)
 router.get("/", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
-    const teams = await teamCollection.find().toArray();
-    res.json(teams);
+    
+    // Optional: Add pagination, sorting, filtering
+    const { page = 1, limit = 50, status, search } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = {};
+    
+    // Filter by status
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    // Search by team name or code
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { code: { $regex: search, $options: 'i' } },
+        { "members.userName": { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    const teams = await teamCollection.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .toArray();
+    
+    const total = await teamCollection.countDocuments(query);
+    
+    res.json({
+      teams,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
   } catch (error) {
     console.error("Error fetching teams:", error);
     res.status(500).json({ message: "Error fetching teams", error: error.message });
+  }
+});
+
+// Get team by ID (for admin)
+router.get("/:teamId", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const teamCollection = db.collection("teams");
+    
+    const { teamId } = req.params;
+    const team = await teamCollection.findOne({ _id: safeObjectId(teamId) });
+    
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+    
+    res.json(team);
+  } catch (error) {
+    console.error("Error fetching team:", error);
+    res.status(500).json({ message: "Failed to fetch team" });
+  }
+});
+
+// Update team status (admin)
+router.patch("/:teamId/status", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const teamCollection = db.collection("teams");
+
+    const { teamId } = req.params;
+    const { status } = req.body;
+
+    if (!status || !["waiting", "ready", "started", "completed"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const result = await teamCollection.updateOne(
+      { _id: safeObjectId(teamId) },
+      { 
+        $set: { 
+          status: status,
+          updatedAt: new Date(),
+          ...(status === "completed" && { completedAt: new Date() })
+        } 
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    const updatedTeam = await teamCollection.findOne({ _id: safeObjectId(teamId) });
+    res.json({ message: "Team status updated", team: updatedTeam });
+  } catch (error) {
+    console.error("Error updating team status:", error);
+    res.status(500).json({ message: "Failed to update team status" });
+  }
+});
+
+// Delete team (admin)
+router.delete("/:teamId", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const teamCollection = db.collection("teams");
+
+    const { teamId } = req.params;
+    const result = await teamCollection.deleteOne({ _id: safeObjectId(teamId) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    res.json({ message: "Team deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting team:", error);
+    res.status(500).json({ message: "Failed to delete team" });
+  }
+});
+
+// Get team statistics (for admin dashboard)
+router.get("/stats/summary", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const teamCollection = db.collection("teams");
+
+    const stats = await teamCollection.aggregate([
+      {
+        $facet: {
+          totalTeams: [{ $count: "count" }],
+          statusCounts: [
+            { $group: { _id: "$status", count: { $sum: 1 } } }
+          ],
+          teamsByDate: [
+            {
+              $group: {
+                _id: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+                },
+                count: { $sum: 1 }
+              }
+            },
+            { $sort: { _id: 1 } },
+            { $limit: 30 }
+          ],
+          averageMembers: [
+            {
+              $group: {
+                _id: null,
+                averageMembers: { $avg: { $size: "$members" } }
+              }
+            }
+          ]
+        }
+      }
+    ]).toArray();
+
+    res.json(stats[0]);
+  } catch (error) {
+    console.error("Error fetching team statistics:", error);
+    res.status(500).json({ message: "Failed to fetch team statistics" });
   }
 });
 
