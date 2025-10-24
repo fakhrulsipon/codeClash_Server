@@ -1,6 +1,6 @@
 const express = require("express");
 const { connectDB } = require("../db");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
+const { ObjectId } = require("mongodb");
 
 const router = express.Router();
 
@@ -43,27 +43,39 @@ router.post("/", async (req, res) => {
     };
 
     const result = await usersCollection.insertOne(newUser);
-    res
-      .status(201)
-      .json({
-        message: "User added successfully",
-        userId: result.insertedId,
-        user: newUser,
-      });
+    res.status(201).json({
+      message: "User added successfully",
+      userId: result.insertedId,
+      user: newUser,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 });
 
-// GET all users
+// GET all users with search & pagination
 router.get("/", async (req, res) => {
   try {
     const db = await connectDB();
     const usersCollection = db.collection("users");
 
-    const users = await usersCollection.find().toArray();
-    res.json(users);
+    const search = req.query.search || "";
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const query = search
+      ? { userName: { $regex: search, $options: "i" } } // name দিয়ে সার্চ
+      : {};
+
+    const total = await usersCollection.countDocuments(query);
+    const users = await usersCollection
+      .find(query)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray();
+
+    res.json({ users, total });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
@@ -90,8 +102,10 @@ router.get("/:email", async (req, res) => {
   }
 });
 
+
+
 // Get submissions of a single user by email
-router.get("/submissions/:email", verifyFBToken, async (req, res) => {
+router.get("/submissions/:email", async (req, res) => {
   try {
     const db = await connectDB();
     const submissionsCollection = db.collection("submissions");
@@ -120,7 +134,7 @@ router.get("/submissions/:email", verifyFBToken, async (req, res) => {
 });
 
 // get single user total point + success/failure + growth
-router.get("/profile/:email", verifyFBToken, async (req, res) => {
+router.get("/profile/:email", async (req, res) => {
   const { email } = req.params;
 
   try {
@@ -182,6 +196,26 @@ router.get("/profile/:email", verifyFBToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server Error" });
+  }
+});
+
+// update user role
+router.patch("/:id/role", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const usersCollection = db.collection("users");
+    const { id } = req.params;
+    const { role } = req.body; // 'user' or 'admin'
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { userRole: role } }
+    );
+
+    res.json({ message: "Role updated", modifiedCount: result.modifiedCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

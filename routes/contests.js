@@ -1,13 +1,11 @@
 const express = require("express");
 const { ObjectId } = require("mongodb");
 const { connectDB } = require("../db");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
-const { verifyAdmin } = require("../middlewares/verifyAdmin");
 
 const router = express.Router();
 
 // Create contest
-router.post("/", verifyFBToken, verifyAdmin, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const db = await connectDB();
     const contestCollection = db.collection("contests");
@@ -35,7 +33,7 @@ router.post("/", verifyFBToken, verifyAdmin, async (req, res) => {
 });
 
 // Get all contests with problems
-router.get("/", verifyFBToken, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const db = await connectDB();
     const contestCollection = db.collection("contests");
@@ -60,7 +58,7 @@ router.get("/", verifyFBToken, async (req, res) => {
 });
 
 // Get single contest by ID
-router.get("/:id", verifyFBToken, async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const db = await connectDB();
     const contestCollection = db.collection("contests");
@@ -89,7 +87,7 @@ router.get("/:id", verifyFBToken, async (req, res) => {
 });
 
 // Update contest (edit title, time, problems, etc.)
-router.put("/:id", verifyFBToken, async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -113,7 +111,7 @@ router.put("/:id", verifyFBToken, async (req, res) => {
 });
 
 // Toggle pause/unpause
-router.patch("/:id/toggle", verifyFBToken, async (req, res) => {
+router.patch("/:id/toggle", async (req, res) => {
   try {
     const { id } = req.params;
     const db = await connectDB();
@@ -140,7 +138,7 @@ router.patch("/:id/toggle", verifyFBToken, async (req, res) => {
 });
 
 // Delete contest
-router.delete("/:id", verifyFBToken, async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 

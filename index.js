@@ -8,6 +8,8 @@ const problemsRouter = require("./routes/problems");
 const contestsRouter = require("./routes/contests");
 const usersRouter = require("./routes/users");
 const teamsRouter = require("./routes/teams");
+const participantsRouter = require("./routes/contestParticipants");
+const contestSubmissionsRouter = require("./routes/contestSubmissions");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,6 +24,8 @@ app.use("/api/problems", problemsRouter);
 app.use("/api/contests", contestsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/teams", teamsRouter);
+app.use("/api/contestParticipants", participantsRouter);
+app.use("/api/contestSubmissions", contestSubmissionsRouter);
 
 // Root route
 app.get("/", (req, res) => {
