@@ -1,12 +1,14 @@
 const axios = require("axios");
 const express = require("express");
 const { connectDB } = require("../db");
+const { verifyFBToken } = require("../middlewares/authMiddleware");
+const { verifyAdmin } = require("../middlewares/verifyAdmin")
 
 
 const router = express.Router();
 
 // Add a new problem
-router.post("/", async (req, res) => {
+router.post("/", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const problemCollection = db.collection("problems");
@@ -49,7 +51,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET all problems with optional filters
 // GET all problems with optional filters and search
 router.get("/", async (req, res) => {
   try {
@@ -92,7 +93,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // monaco Editor with javascript, python, java and c
-router.post("/run-code", async (req, res) => {
+router.post("/run-code", verifyFBToken, async (req, res) => {
   const { code, language, input } = req.body;
 
   const languageMap = {
@@ -206,7 +207,7 @@ router.post("/run-code", async (req, res) => {
 });
 
 // api for submitting solution
-router.post("/submissions", async (req, res) => {
+router.post("/submissions", verifyFBToken, async (req, res) => {
   try {
     const db = await connectDB();
     const submissionsCollection = db.collection("submissions");

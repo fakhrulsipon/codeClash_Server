@@ -10,7 +10,7 @@ admin.initializeApp({
 const verifyFBToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log(authHeader)
+    // console.log(authHeader)
 
    if(!authHeader) {
     return res.status(401).send({message: 'unauthorized access'})
