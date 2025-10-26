@@ -1,7 +1,8 @@
 const express = require("express");
 const { connectDB } = require("../db");
 const { ObjectId } = require("mongodb");
-
+const { verifyFBToken } = require("../middlewares/authMiddleware");
+const { verifyAdmin } = require("../middlewares/verifyAdmin");
 const router = express.Router();
 
 // get user role
@@ -105,7 +106,7 @@ router.get("/:email", async (req, res) => {
 
 
 // Get submissions of a single user by email
-router.get("/submissions/:email", async (req, res) => {
+router.get("/submissions/:email", verifyFBToken, async (req, res) => {
   try {
     const db = await connectDB();
     const submissionsCollection = db.collection("submissions");
@@ -134,7 +135,7 @@ router.get("/submissions/:email", async (req, res) => {
 });
 
 // get single user total point + success/failure + growth
-router.get("/profile/:email", async (req, res) => {
+router.get("/profile/:email", verifyFBToken, async (req, res) => {
   const { email } = req.params;
 
   try {
@@ -200,7 +201,7 @@ router.get("/profile/:email", async (req, res) => {
 });
 
 // update user role
-router.patch("/:id/role", async (req, res) => {
+router.patch("/:id/role", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const usersCollection = db.collection("users");
