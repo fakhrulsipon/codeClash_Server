@@ -170,7 +170,7 @@ router.post("/run-code", async (req, res) => {
 
   try {
     const response = await axios.post(
-      `${process.env.JUDGE0_API_URL}/submissions?wait=true&base64_encoded=true`,
+      `${process.env.JUDGE0_API_URL}submissions?wait=true&base64_encoded=true`,
       payload,
       {
         headers: {
@@ -212,6 +212,7 @@ router.post("/submissions", async (req, res) => {
     const {
       userEmail,
       userName,
+      userPhoto,
       status,
       problemTitle,
       problemDifficulty,
@@ -222,6 +223,7 @@ router.post("/submissions", async (req, res) => {
     if (
       !userEmail ||
       !userName ||
+      !userPhoto ||
       !status ||
       !problemTitle ||
       !problemDifficulty ||
@@ -234,6 +236,7 @@ router.post("/submissions", async (req, res) => {
     const submission = {
       userEmail,
       userName,
+      userPhoto,
       status,
       problemTitle,
       problemDifficulty,
