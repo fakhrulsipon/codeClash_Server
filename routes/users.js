@@ -15,6 +15,7 @@ router.get("/role/:email", async (req, res) => {
   res.json({ role: user.userRole });
 });
 
+// user leaderboard
 router.get("/leaderboard", async (req, res) => {
   try {
     const db = await connectDB();
@@ -57,6 +58,54 @@ router.get("/leaderboard", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+// top 4 problem solver
+router.get("/leaderboard/top", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const submissionsCollection = db.collection("submissions");
+
+    const leaderboard = await submissionsCollection
+      .aggregate([
+        {
+          $group: {
+            _id: "$userEmail",
+            userEmail: { $first: "$userEmail" },
+            userName: { $first: "$userName" },
+            totalPoints: {
+              $sum: {
+                $cond: [
+                  { $eq: ["$status", "Success"] },
+                  "$point",
+                  {
+                    $cond: [{ $eq: ["$status", "Failure"] }, "$point", 0],
+                  },
+                ],
+              },
+            },
+            totalSolved: {
+              $sum: { $cond: [{ $eq: ["$status", "Success"] }, 1, 0] },
+            },
+            totalFailures: {
+              $sum: { $cond: [{ $eq: ["$status", "Failure"] }, 1, 0] },
+            },
+          },
+        },
+        { $sort: { totalPoints: -1 } },
+        { $limit: 4 },
+      ])
+      .toArray();
+
+    res.status(200).json({ success: true, leaderboard });
+  } catch (error) {
+    console.error("Error fetching top leaderboard:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
+
 
 
 
