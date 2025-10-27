@@ -314,5 +314,116 @@ router.patch("/:id/role", async (req, res) => {
   }
 });
 
+// GET user dashboard statistics
+router.get("/dashboard/:email", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const submissionsCollection = db.collection("submissions");
+    const usersCollection = db.collection("users");
+
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required"
+      });
+    }
+
+    // Verify user exists
+    const user = await usersCollection.findOne({ userEmail: email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Get user's submissions
+    const submissions = await submissionsCollection
+      .find({ userEmail: email })
+      .sort({ submittedAt: -1 })
+      .toArray();
+
+    // Calculate statistics
+    const totalSubmissions = submissions.length;
+    const successSubmissions = submissions.filter(sub => sub.status === "Success").length;
+    const totalPoints = submissions.reduce((sum, sub) => sum + (sub.point || 0), 0);
+
+    // Get unique solved problems count
+    const solvedProblemIds = [...new Set(
+      submissions
+        .filter(sub => sub.status === "Success")
+        .map(sub => sub.problemId?.toString())
+        .filter(Boolean)
+    )];
+    const totalSolved = solvedProblemIds.length;
+
+    const successRate = totalSubmissions > 0
+      ? Math.round((successSubmissions / totalSubmissions) * 100)
+      : 0;
+
+    // Get favorite language
+    const languageStats = {};
+    submissions.forEach(sub => {
+      if (sub.language) {
+        languageStats[sub.language] = (languageStats[sub.language] || 0) + 1;
+      }
+    });
+
+    const favoriteLanguage = Object.keys(languageStats).length > 0
+      ? Object.keys(languageStats).reduce((a, b) =>
+        languageStats[a] > languageStats[b] ? a : b
+      )
+      : "N/A";
+
+    // Get problems solved today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const problemsSolvedToday = submissions.filter(sub =>
+      sub.status === "Success" &&
+      new Date(sub.submittedAt) >= today &&
+      new Date(sub.submittedAt) < tomorrow
+    ).length;
+
+    // Simple calculations for now
+    const currentStreak = 0;
+    const userRank = "N/A";
+
+    // Prepare recent submissions
+    const recentSubmissions = submissions.slice(0, 10).map(sub => ({
+      _id: sub._id,
+      problemId: sub.problemId,
+      problemName: sub.problemTitle || "Unknown Problem",
+      difficulty: sub.problemDifficulty || "Unknown",
+      language: sub.language,
+      result: sub.status,
+      submittedAt: sub.submittedAt,
+      points: sub.point || 0
+    }));
+
+    res.json({
+      success: true,
+      totalSolved,
+      totalPoints,
+      successRate,
+      currentStreak,
+      rank: userRank,
+      recentSubmissions,
+      favoriteLanguage,
+      problemsSolvedToday
+    });
+
+  } catch (error) {  
+    console.error("Error fetching user dashboard:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load dashboard data"
+    });
+  }
+});
 
 module.exports = router;
