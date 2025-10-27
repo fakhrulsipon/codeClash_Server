@@ -1,6 +1,8 @@
 const express = require("express");
 const { ObjectId } = require("mongodb");
 const { connectDB } = require("../db");
+const { verifyFBToken } = require("../middlewares/authMiddleware");
+const { verifyAdmin } = require("../middlewares/verifyAdmin");
 
 const router = express.Router();
 
@@ -14,7 +16,7 @@ const safeObjectId = (id) => {
 };
 
 // POST: Add participant to contest
-router.post("/", async (req, res) => {
+router.post("/", verifyFBToken, async (req, res) => {
   const { contestId, userId, userName, userEmail, type } = req.body;
 
   if (!contestId || !userId || !type) {
@@ -49,28 +51,28 @@ router.post("/", async (req, res) => {
 });
 
 // GET participant counts for multiple contests
-router.get("/counts", async (req, res) => {
+router.get("/counts", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
 
     const { contestIds } = req.query;
 
-    console.log("🔍 Request received for contestIds:", contestIds);
+    // console.log("🔍 Request received for contestIds:", contestIds);
 
     let contestIdArray = [];
     if (contestIds) {
       contestIdArray = contestIds.split(',');
     }
 
-    console.log("📊 Contest IDs to search for:", contestIdArray);
+    // console.log(" Contest IDs to search for:", contestIdArray);
 
     // Convert string IDs to ObjectIds for querying
     const objectIdArray = contestIdArray
       .filter(id => ObjectId.isValid(id))
       .map(id => new ObjectId(id));
 
-    console.log("🔄 Converted to ObjectIds:", objectIdArray);
+    // console.log(" Converted to ObjectIds:", objectIdArray);
 
     // If no contest IDs provided, get counts for all contests
     let matchStage = {};
@@ -206,7 +208,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET unique contests for filter dropdown
-router.get("/contests/list", async (req, res) => {
+router.get("/contests/list", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -227,7 +229,7 @@ router.get("/contests/list", async (req, res) => {
 });
 
 // GET participant statistics
-router.get("/stats", async (req, res) => {
+router.get("/stats", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -258,7 +260,7 @@ router.get("/stats", async (req, res) => {
 });
 
 // Other endpoints remain the same...
-router.delete("/duplicates", async (req, res) => {
+router.delete("/duplicates", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -324,7 +326,7 @@ router.delete("/duplicates", async (req, res) => {
 });
 
 // DELETE single participant
-router.delete("/:participantId", async (req, res) => {
+router.delete("/:participantId", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -346,7 +348,7 @@ router.delete("/:participantId", async (req, res) => {
 });
 
 // GET participant by ID
-router.get("/:participantId", async (req, res) => {
+router.get("/:participantId", verifyFBToken, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -398,7 +400,7 @@ router.get("/:participantId", async (req, res) => {
 });
 
 // Debug endpoint to see actual contestIds in participants collection
-router.get("/debug-participants", async (req, res) => {
+router.get("/debug-participants", verifyFBToken, async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");

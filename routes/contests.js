@@ -89,7 +89,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update contest (edit title, time, problems, etc.)
-router.put("/:id", async (req, res) => {
+router.put("/:id",verifyFBToken, verifyAdmin,  async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -113,7 +113,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Toggle pause/unpause
-router.patch("/:id/toggle", async (req, res) => {
+router.patch("/:id/toggle", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const db = await connectDB();
@@ -140,7 +140,7 @@ router.patch("/:id/toggle", async (req, res) => {
 });
 
 // Delete contest
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyFBToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
