@@ -49,7 +49,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET all problems with optional filters
 // GET all problems with optional filters and search
 router.get("/", async (req, res) => {
   try {

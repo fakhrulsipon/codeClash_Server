@@ -10,6 +10,8 @@ const usersRouter = require("./routes/users");
 const teamsRouter = require("./routes/teams");
 const participantsRouter = require("./routes/contestParticipants");
 const contestSubmissionsRouter = require("./routes/contestSubmissions");
+const adminRouter = require("./routes/admin");
+
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -26,6 +28,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/teams", teamsRouter);
 app.use("/api/contestParticipants", participantsRouter);
 app.use("/api/contestSubmissions", contestSubmissionsRouter);
+app.use("/api/admin", adminRouter);
 
 // Root route
 app.get("/", (req, res) => {
