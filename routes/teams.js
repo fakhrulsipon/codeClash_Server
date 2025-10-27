@@ -1,8 +1,6 @@
 const express = require("express");
 const { ObjectId } = require("mongodb");
 const { connectDB } = require("../db");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
-const { verifyAdmin } = require("../middlewares/verifyAdmin");
 
 const router = express.Router();
 
@@ -23,7 +21,7 @@ const generateTeamCode = () => {
 };
 
 // Create team
-router.post("/", verifyFBToken, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -72,7 +70,7 @@ router.post("/", verifyFBToken, async (req, res) => {
 });
 
 // Join team using teamCode
-router.post("/join", verifyFBToken, async (req, res) => {
+router.post("/join", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -174,7 +172,7 @@ router.get("/code/:teamCode", async (req, res) => {
 });
 
 // Update member ready state
-router.patch("/:teamCode/ready", verifyFBToken, async (req, res) => {
+router.patch("/:teamCode/ready", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -213,7 +211,7 @@ router.patch("/:teamCode/ready", verifyFBToken, async (req, res) => {
 });
 
 // Start contest (leader)
-router.patch("/:teamCode/start", verifyFBToken, async (req, res) => {
+router.patch("/:teamCode/start", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -297,7 +295,7 @@ router.get("/", async (req, res) => {
 });
 
 // Get team by ID (for admin)
-router.get("/:teamId", verifyFBToken, verifyAdmin, async (req, res) => {
+router.get("/:teamId", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -317,7 +315,7 @@ router.get("/:teamId", verifyFBToken, verifyAdmin, async (req, res) => {
 });
 
 // Update team status (admin)
-router.patch("/:teamId/status", verifyFBToken, verifyAdmin, async (req, res) => {
+router.patch("/:teamId/status", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -353,7 +351,7 @@ router.patch("/:teamId/status", verifyFBToken, verifyAdmin, async (req, res) => 
 });
 
 // Delete team (admin)
-router.delete("/:teamId", verifyFBToken, verifyAdmin, async (req, res) => {
+router.delete("/:teamId", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
@@ -373,7 +371,7 @@ router.delete("/:teamId", verifyFBToken, verifyAdmin, async (req, res) => {
 });
 
 // Get team statistics (for admin dashboard)
-router.get("/stats/summary", verifyFBToken, verifyAdmin, async (req, res) => {
+router.get("/stats/summary", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");

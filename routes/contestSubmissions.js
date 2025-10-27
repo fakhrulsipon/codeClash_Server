@@ -1,12 +1,10 @@
 const express = require("express");
 const { connectDB } = require("../db");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
-const { verifyAdmin } = require("../middlewares/verifyAdmin");
 
 const router = express.Router();
 
 // POST: submit contest problem
-router.post("/", verifyFBToken, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const db = await connectDB();
     const contestSubmissions = db.collection("contestSubmissions");
@@ -38,7 +36,7 @@ router.post("/", verifyFBToken, async (req, res) => {
 });
 
 // GET leaderboard for a contest
-router.get("/leaderboard/:contestId", verifyFBToken, async (req, res) => {
+router.get("/leaderboard/:contestId", async (req, res) => {
   try {
     const db = await connectDB();
     const contestSubmissions = db.collection("contestSubmissions");

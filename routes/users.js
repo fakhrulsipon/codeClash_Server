@@ -1,8 +1,6 @@
 const express = require("express");
 const { connectDB } = require("../db");
 const { ObjectId } = require("mongodb");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
-const { verifyAdmin } = require("../middlewares/verifyAdmin");
 const router = express.Router();
 
 // get user role
@@ -16,6 +14,53 @@ router.get("/role/:email", async (req, res) => {
   }
   res.json({ role: user.userRole });
 });
+
+router.get("/leaderboard", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const submissionsCollection = db.collection("submissions");
+
+    const leaderboard = await submissionsCollection
+      .aggregate([
+        {
+          $group: {
+            _id: "$userEmail",
+            userEmail: { $first: "$userEmail" },
+            userName: { $first: "$userName" },
+            totalPoints: {
+              // success points যোগ, failure points deduct
+              $sum: {
+                $cond: [
+                  { $eq: ["$status", "Success"] },
+                  "$point",
+                  {
+                    $cond: [{ $eq: ["$status", "Failure"] }, "$point", 0],
+                  },
+                ],
+              },
+            },
+            totalSolved: {
+              $sum: { $cond: [{ $eq: ["$status", "Success"] }, 1, 0] },
+            },
+            totalFailures: {
+              $sum: { $cond: [{ $eq: ["$status", "Failure"] }, 1, 0] },
+            },
+          },
+        },
+        { $sort: { totalPoints: -1 } },
+      ])
+      .toArray();
+
+    res.status(200).json({ success: true, leaderboard });
+  } catch (error) {
+    console.error("Error fetching leaderboard:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
+
 
 // Add user
 router.post("/", async (req, res) => {
@@ -106,7 +151,7 @@ router.get("/:email", async (req, res) => {
 
 
 // Get submissions of a single user by email
-router.get("/submissions/:email", verifyFBToken, async (req, res) => {
+router.get("/submissions/:email", async (req, res) => {
   try {
     const db = await connectDB();
     const submissionsCollection = db.collection("submissions");
@@ -135,7 +180,7 @@ router.get("/submissions/:email", verifyFBToken, async (req, res) => {
 });
 
 // get single user total point + success/failure + growth
-router.get("/profile/:email", verifyFBToken, async (req, res) => {
+router.get("/profile/:email", async (req, res) => {
   const { email } = req.params;
 
   try {
@@ -201,7 +246,7 @@ router.get("/profile/:email", verifyFBToken, async (req, res) => {
 });
 
 // update user role
-router.patch("/:id/role", verifyFBToken, verifyAdmin, async (req, res) => {
+router.patch("/:id/role", async (req, res) => {
   try {
     const db = await connectDB();
     const usersCollection = db.collection("users");
@@ -219,5 +264,6 @@ router.patch("/:id/role", verifyFBToken, verifyAdmin, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 module.exports = router;
