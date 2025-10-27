@@ -1,8 +1,6 @@
 const express = require("express");
 const { ObjectId } = require("mongodb");
 const { connectDB } = require("../db");
-const { verifyFBToken } = require("../middlewares/authMiddleware");
-const { verifyAdmin } = require("../middlewares/verifyAdmin");
 
 const router = express.Router();
 
@@ -16,7 +14,7 @@ const safeObjectId = (id) => {
 };
 
 // POST: Add participant to contest
-router.post("/", verifyFBToken, async (req, res) => {
+router.post("/", async (req, res) => {
   const { contestId, userId, userName, userEmail, type } = req.body;
 
   if (!contestId || !userId || !type) {
@@ -51,7 +49,7 @@ router.post("/", verifyFBToken, async (req, res) => {
 });
 
 // GET participant counts for multiple contests
-router.get("/counts", verifyFBToken, verifyAdmin, async (req, res) => {
+router.get("/counts", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -208,7 +206,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET unique contests for filter dropdown
-router.get("/contests/list", verifyFBToken, verifyAdmin, async (req, res) => {
+router.get("/contests/list", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -229,7 +227,7 @@ router.get("/contests/list", verifyFBToken, verifyAdmin, async (req, res) => {
 });
 
 // GET participant statistics
-router.get("/stats", verifyFBToken, verifyAdmin, async (req, res) => {
+router.get("/stats", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -260,7 +258,7 @@ router.get("/stats", verifyFBToken, verifyAdmin, async (req, res) => {
 });
 
 // Other endpoints remain the same...
-router.delete("/duplicates", verifyFBToken, verifyAdmin, async (req, res) => {
+router.delete("/duplicates", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -326,7 +324,7 @@ router.delete("/duplicates", verifyFBToken, verifyAdmin, async (req, res) => {
 });
 
 // DELETE single participant
-router.delete("/:participantId", verifyFBToken, verifyAdmin, async (req, res) => {
+router.delete("/:participantId", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -348,7 +346,7 @@ router.delete("/:participantId", verifyFBToken, verifyAdmin, async (req, res) =>
 });
 
 // GET participant by ID
-router.get("/:participantId", verifyFBToken, async (req, res) => {
+router.get("/:participantId", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
@@ -400,7 +398,7 @@ router.get("/:participantId", verifyFBToken, async (req, res) => {
 });
 
 // Debug endpoint to see actual contestIds in participants collection
-router.get("/debug-participants", verifyFBToken, async (req, res) => {
+router.get("/debug-participants", async (req, res) => {
   try {
     const db = await connectDB();
     const participantsCollection = db.collection("contestParticipants");
