@@ -14,8 +14,13 @@ const contestSubmissionsRouter = require("./routes/contestSubmissions");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ Middlewares
-app.use(cors());
+
+
+app.use(cors({
+  origin: ["https://your-frontend-domain.vercel.app", "http://localhost:5173"],
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
