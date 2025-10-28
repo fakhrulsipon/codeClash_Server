@@ -332,7 +332,7 @@ router.get("/dashboard/:email", async (req, res) => {
 });
 
 
-// GET top users for leaderboard (REAL implementation)
+// GET top users for leaderboard
 router.get("/leaderboard/top", async (req, res) => {
   try {
     const db = await connectDB();
