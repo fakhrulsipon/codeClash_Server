@@ -32,6 +32,15 @@ app.use("/api/teams", teamsRouter);
 app.use("/api/contestParticipants", participantsRouter);
 app.use("/api/contestSubmissions", contestSubmissionsRouter);
 
+// miskaran's contribution start
+// New AI Agent router
+const aiAgentRouter = require("./aiAgent"); 
+
+// AI Agent route
+app.use("/api/ai-agent", aiAgentRouter);
+// miskaran's contribution end
+
+
 // Root route
 app.get("/", (req, res) => {
   res.send("Welcome to CodeClash API 🚀");
