@@ -457,23 +457,25 @@ router.get("/leaderboard/top", async (req, res) => {
           const totalFailures = userSubmissions.filter(sub => sub.status === "Failure").length;
 
           return {
+            _id: user._id, // Add _id field
             userEmail: user.userEmail,
             userName: user.userName,
             totalPoints: totalPoints,
             totalSolved: totalSolved,
             totalFailures: totalFailures,
-            avatarUrl: user.userImage || "",
-            submissionCount: userSubmissions.length // for debugging
+            userImage: user.userImage || "", // Change avatarUrl to userImage
+            submissionCount: userSubmissions.length
           };
         } catch (error) {
           console.error(`Error processing user ${user.userEmail}:`, error);
           return {
+            _id: user._id,
             userEmail: user.userEmail,
             userName: user.userName,
             totalPoints: 0,
             totalSolved: 0,
             totalFailures: 0,
-            avatarUrl: user.userImage || "",
+            userImage: user.userImage || "", // Change avatarUrl to userImage
             submissionCount: 0,
             error: error.message
           };
@@ -509,12 +511,13 @@ router.get("/leaderboard/top", async (req, res) => {
     // If no active users, try to return all users with default stats
     if (allUsers.length > 0) {
       const fallbackUsers = allUsers.slice(0, 4).map((user, index) => ({
+        _id: user._id,
         userEmail: user.userEmail,
         userName: user.userName,
         totalPoints: Math.max(100, 1000 - (index * 200)),
         totalSolved: Math.max(5, 30 - (index * 5)),
         totalFailures: Math.max(1, 5 + index),
-        avatarUrl: user.userImage || "",
+        userImage: user.userImage || "", // Change avatarUrl to userImage
         source: "fallback_stats"
       }));
 
@@ -532,36 +535,40 @@ router.get("/leaderboard/top", async (req, res) => {
     console.log("⚠️ No users found in database, using mock data");
     const mockTopUsers = [
       {
+        _id: "1",
         userEmail: "admin@example.com",
         userName: "Code Master",
         totalPoints: 1250,
         totalSolved: 45,
         totalFailures: 5,
-        avatarUrl: ""
+        userImage: "" // Change avatarUrl to userImage
       },
       {
+        _id: "2",
         userEmail: "user1@example.com",
         userName: "Algorithm Pro",
         totalPoints: 980,
         totalSolved: 32,
         totalFailures: 8,
-        avatarUrl: ""
+        userImage: "" // Change avatarUrl to userImage
       },
       {
+        _id: "3",
         userEmail: "user2@example.com",
         userName: "Data Wizard",
         totalPoints: 760,
         totalSolved: 28,
         totalFailures: 12,
-        avatarUrl: ""
+        userImage: "" // Change avatarUrl to userImage
       },
       {
+        _id: "4",
         userEmail: "user3@example.com",
         userName: "Logic Genius",
         totalPoints: 650,
         totalSolved: 25,
         totalFailures: 15,
-        avatarUrl: ""
+        userImage: "" // Change avatarUrl to userImage
       }
     ];
 
