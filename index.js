@@ -10,12 +10,19 @@ const usersRouter = require("./routes/users");
 const teamsRouter = require("./routes/teams");
 const participantsRouter = require("./routes/contestParticipants");
 const contestSubmissionsRouter = require("./routes/contestSubmissions");
+const adminRouter = require("./routes/admin");
+
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ Middlewares
-app.use(cors());
+
+
+app.use(cors({
+  origin: ["https://your-frontend-domain.vercel.app", "http://localhost:5173"],
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -26,6 +33,16 @@ app.use("/api/users", usersRouter);
 app.use("/api/teams", teamsRouter);
 app.use("/api/contestParticipants", participantsRouter);
 app.use("/api/contestSubmissions", contestSubmissionsRouter);
+app.use("/api/admin", adminRouter);
+
+// miskaran's contribution start
+// New AI Agent router
+const aiAgentRouter = require("./aiAgent"); 
+
+// AI Agent route
+app.use("/api/ai-agent", aiAgentRouter);
+// miskaran's contribution end
+
 
 // Root route
 app.get("/", (req, res) => {

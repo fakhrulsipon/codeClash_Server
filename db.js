@@ -21,4 +21,11 @@ async function connectDB() {
   return db;
 }
 
-module.exports = { connectDB };
+// miskaran's contribution start
+//  this helper so routes can access db directly
+function getDB() {
+  if (!db) throw new Error("❌ Database not connected. Call connectDB() first.");
+  return db;
+}
+module.exports = { connectDB,getDB };
+// miskaran's contribution end

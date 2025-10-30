@@ -56,21 +56,21 @@ router.get("/counts", async (req, res) => {
 
     const { contestIds } = req.query;
 
-    console.log("🔍 Request received for contestIds:", contestIds);
+    // console.log("🔍 Request received for contestIds:", contestIds);
 
     let contestIdArray = [];
     if (contestIds) {
       contestIdArray = contestIds.split(',');
     }
 
-    console.log("📊 Contest IDs to search for:", contestIdArray);
+    // console.log(" Contest IDs to search for:", contestIdArray);
 
     // Convert string IDs to ObjectIds for querying
     const objectIdArray = contestIdArray
       .filter(id => ObjectId.isValid(id))
       .map(id => new ObjectId(id));
 
-    console.log("🔄 Converted to ObjectIds:", objectIdArray);
+    // console.log(" Converted to ObjectIds:", objectIdArray);
 
     // If no contest IDs provided, get counts for all contests
     let matchStage = {};
