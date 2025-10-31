@@ -4,13 +4,13 @@ const { connectDB } = require("../db");
 
 const router = express.Router();
 
-// Helper: safely parse ObjectId
+// Helper: safely parse ObjectId to prevent errors
 const safeObjectId = (id) => {
   if (!id) return null;
   return ObjectId.isValid(id) ? new ObjectId(id) : id;
 };
 
-// Helper: generate 6-char alphanumeric code
+// Helper: generate 6-char alphanumeric team code
 const generateTeamCode = () => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -20,7 +20,91 @@ const generateTeamCode = () => {
   return code;
 };
 
-// Create team
+// ==================== USER TEAM ROUTES ====================
+
+/**
+ * Create a team quickly with auto-generated name and invite link
+ */
+router.post("/quick-create", async (req, res) => {
+  try {
+    const db = await connectDB();
+    const teamCollection = db.collection("teams");
+
+    const { contestId, userId, userName, userImage, teamName } = req.body;
+
+    if (!contestId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Missing required fields: contestId and userId" 
+      });
+    }
+
+    // Auto-generate team name if not provided
+    const teamNames = [
+      "Code Warriors", "Algorithm Masters", "Debug Dynasty", 
+      "Syntax Squad", "Binary Battalion", "Logic Legends",
+      "Pixel Pioneers", "Byte Busters", "Cyber Champions",
+      "Data Dragons", "Function Falcons", "Loop Lions"
+    ];
+    
+    const finalTeamName = teamName || 
+      `${teamNames[Math.floor(Math.random() * teamNames.length)]} ${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // Generate unique team code
+    let code = generateTeamCode();
+    let exists = await teamCollection.findOne({ code });
+    while (exists) {
+      code = generateTeamCode();
+      exists = await teamCollection.findOne({ code });
+    }
+
+    const team = {
+      name: finalTeamName,
+      contestId: new ObjectId(contestId),
+      code: code,
+      createdBy: userId,
+      members: [
+        {
+          userId: userId,
+          userName: userName || "Coder",
+          userImage: userImage || "",
+          role: "leader",
+          ready: false,
+          joinedAt: new Date(),
+        },
+      ],
+      status: "waiting",
+      privacy: "private", // Teams are private by default
+      maxSize: 4, // Default team size
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await teamCollection.insertOne(team);
+    
+    // Generate invite link for easy sharing
+    const inviteLink = `http://localhost:5173/contests/${contestId}?join=${code}`;
+    
+    res.status(201).json({ 
+      success: true,
+      message: "Team created successfully", 
+      teamCode: code,
+      teamName: finalTeamName,
+      teamId: result.insertedId,
+      inviteLink: inviteLink
+    });
+  } catch (error) {
+    console.error("Error in quick create:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to create team" 
+    });
+  }
+});
+
+/**
+ * Create a team with custom name (original endpoint)
+ */
 router.post("/", async (req, res) => {
   try {
     const db = await connectDB();
@@ -69,7 +153,9 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Join team using teamCode
+/**
+ * Join an existing team using team code
+ */
 router.post("/join", async (req, res) => {
   try {
     const db = await connectDB();
@@ -81,24 +167,32 @@ router.post("/join", async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    // Find team by code
     const team = await teamCollection.findOne({ code });
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
     }
 
+    // Check if user is already a member
     const alreadyMember = team.members.some((m) => m.userId === userId);
     if (alreadyMember) {
       return res.status(409).json({ message: "Already in this team" });
     }
 
+    // Check if team is full
+    if (team.members.length >= (team.maxSize || 4)) {
+      return res.status(400).json({ message: "Team is full" });
+    }
+
+    // Add user to team
     await teamCollection.updateOne(
       { code },
       {
         $push: {
           members: {
             userId,
-            userName,
-            userImage,
+            userName: userName || "Coder",
+            userImage: userImage || "",
             role: "member",
             ready: false,
             joinedAt: new Date(),
@@ -106,20 +200,25 @@ router.post("/join", async (req, res) => {
         },
         $set: {
           updatedAt: new Date(),
-          status: "waiting",
+          status: "waiting", // Reset status when new member joins
           readyAt: null,
         },
       }
     );
 
-    res.status(200).json({ message: "Joined team successfully!" });
+    res.status(200).json({ 
+      success: true,
+      message: "Joined team successfully!" 
+    });
   } catch (error) {
     console.error("Error joining team:", error);
     res.status(500).json({ message: "Failed to join team" });
   }
 });
 
-// Get team by userId and contestId - returns most recent team
+/**
+ * Get user's team for a specific contest
+ */
 router.get("/user/:userId", async (req, res) => {
   try {
     const db = await connectDB();
@@ -134,6 +233,7 @@ router.get("/user/:userId", async (req, res) => {
 
     const queryContestId = ObjectId.isValid(contestId) ? new ObjectId(contestId) : contestId;
 
+    // Find all teams user is in for this contest, get most recent
     const teams = await teamCollection.find({
       contestId: queryContestId,
       "members.userId": userId,
@@ -151,7 +251,9 @@ router.get("/user/:userId", async (req, res) => {
   }
 });
 
-// Get team by code
+/**
+ * Get team details by team code
+ */
 router.get("/code/:teamCode", async (req, res) => {
   try {
     const db = await connectDB();
@@ -171,7 +273,9 @@ router.get("/code/:teamCode", async (req, res) => {
   }
 });
 
-// Update member ready state
+/**
+ * Update member's ready status
+ */
 router.patch("/:teamCode/ready", async (req, res) => {
   try {
     const db = await connectDB();
@@ -191,7 +295,7 @@ router.patch("/:teamCode/ready", async (req, res) => {
       }
     );
 
-    // Fetch updated team
+    // Fetch updated team to check if all members are ready
     const team = await teamCollection.findOne({ code: teamCode });
     if (!team) return res.status(404).json({ message: "Team not found" });
 
@@ -199,7 +303,12 @@ router.patch("/:teamCode/ready", async (req, res) => {
     const allReady = team.members.every((m) => m.ready === true);
     await teamCollection.updateOne(
       { code: teamCode },
-      { $set: { status: allReady ? "ready" : "waiting", readyAt: allReady ? new Date() : null } }
+      { 
+        $set: { 
+          status: allReady ? "ready" : "waiting", 
+          readyAt: allReady ? new Date() : null 
+        } 
+      }
     );
 
     const updatedTeam = await teamCollection.findOne({ code: teamCode });
@@ -210,7 +319,9 @@ router.patch("/:teamCode/ready", async (req, res) => {
   }
 });
 
-// Start contest (leader)
+/**
+ * Start the contest (team leader only)
+ */
 router.patch("/:teamCode/start", async (req, res) => {
   try {
     const db = await connectDB();
@@ -222,21 +333,28 @@ router.patch("/:teamCode/start", async (req, res) => {
     const team = await teamCollection.findOne({ code: teamCode });
     if (!team) return res.status(404).json({ message: "Team not found" });
 
+    // Verify user is the team leader
     if (team.createdBy !== userId) {
       return res.status(403).json({ message: "Only the leader can start the contest" });
     }
 
+    // Check if all members are ready
     if (!team.members.every((m) => m.ready)) {
       return res.status(400).json({ message: "All members must be ready" });
     }
 
+    // Start the contest
     await teamCollection.updateOne(
       { code: teamCode },
       { $set: { status: "started", updatedAt: new Date() } }
     );
 
     const updatedTeam = await teamCollection.findOne({ code: teamCode });
-    res.json({ message: "Contest started", team: updatedTeam });
+    res.json({ 
+      success: true,
+      message: "Contest started", 
+      team: updatedTeam 
+    });
   } catch (error) {
     console.error("Error starting contest:", error);
     res.status(500).json({ message: "Failed to start contest" });
@@ -245,13 +363,15 @@ router.patch("/:teamCode/start", async (req, res) => {
 
 // ==================== ADMIN ROUTES ====================
 
-// Get all teams (for admin)
+/**
+ * Get all teams with pagination and filtering (Admin only)
+ */
 router.get("/", async (req, res) => {
   try {
     const db = await connectDB();
     const teamCollection = db.collection("teams");
     
-    // Optional: Add pagination, sorting, filtering
+    // Pagination and filtering
     const { page = 1, limit = 50, status, search } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
@@ -262,7 +382,7 @@ router.get("/", async (req, res) => {
       query.status = status;
     }
     
-    // Search by team name or code
+    // Search by team name, code, or member name
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -294,7 +414,9 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get team by ID (for admin)
+/**
+ * Get team by ID (Admin only)
+ */
 router.get("/:teamId", async (req, res) => {
   try {
     const db = await connectDB();
@@ -314,7 +436,9 @@ router.get("/:teamId", async (req, res) => {
   }
 });
 
-// Update team status (admin)
+/**
+ * Update team status (Admin only)
+ */
 router.patch("/:teamId/status", async (req, res) => {
   try {
     const db = await connectDB();
@@ -350,7 +474,10 @@ router.patch("/:teamId/status", async (req, res) => {
   }
 });
 
-// Delete team (admin)
+/**
+ * DELETE /api/teams/:teamId
+ * Delete team (Admin only)
+ */
 router.delete("/:teamId", async (req, res) => {
   try {
     const db = await connectDB();
@@ -370,7 +497,9 @@ router.delete("/:teamId", async (req, res) => {
   }
 });
 
-// Get team statistics (for admin dashboard)
+/**
+ * Get team statistics for admin dashboard
+ */
 router.get("/stats/summary", async (req, res) => {
   try {
     const db = await connectDB();
