@@ -11,6 +11,8 @@ const teamsRouter = require("./routes/teams");
 const participantsRouter = require("./routes/contestParticipants");
 const contestSubmissionsRouter = require("./routes/contestSubmissions");
 const adminRouter = require("./routes/admin");
+const reviewsRoutes = require('./routes/reviews');
+
 
 
 const app = express();
@@ -34,6 +36,7 @@ app.use("/api/teams", teamsRouter);
 app.use("/api/contestParticipants", participantsRouter);
 app.use("/api/contestSubmissions", contestSubmissionsRouter);
 app.use("/api/admin", adminRouter);
+app.use('/api/reviews', reviewsRoutes);
 
 // miskaran's contribution start
 // New AI Agent router
